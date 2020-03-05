@@ -1,0 +1,25 @@
+stages:
+  - build
+  - deploy
+  - checkstate
+
+docker-build:
+  stage: build
+  before_script:
+  - cat token.txt | docker login --username o1gerd --password-stdin
+  script:
+  - docker build -t o1gerd/py3web:$CI_PIPELINE_ID .
+  - docker push o1gerd/py3web:$CI_PIPELINE_ID
+
+minikube-deploy:
+  stage: deploy
+  script:
+  - /bin/bash deploy
+  
+minikube-check-deploy:
+  stage: checkstate
+  before_script:
+  - http_code=$(curl -I $(minikube service py3web-prj-service --url) 2>/dev/null | head -n 1 | cut -d$' ' -f2)
+  - echo $http_code
+  script:
+  - if [[ $http_code != 200 ]]; then  kubectl rollout undo deployment py3web-prj-deployment; fi
